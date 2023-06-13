@@ -1,5 +1,4 @@
 // App.tsx
-import React from 'react';
 import { Grid } from './Grid/Grid';
 
 function App() {
