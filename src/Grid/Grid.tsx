@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import NodeComponent from './NodeComponent';
+import {  Button } from 'react-bootstrap';
+
+import { NavbarComponent } from "../Navbar/Navbar";
 import './css/grid.css'
 import dijkstra from '../algorithms/Dijkstra'; 
 
@@ -14,10 +17,12 @@ export interface Node {
 
 const createGridData = (nodeCountX: number, nodeCountY: number): Node[][] => {
   const data: Node[][] = [];
+  
   for (let x = 0; x < nodeCountX; x++) {
     data[x] = [];
+
     for (let y = 0; y < nodeCountY; y++) {
-      data[x][y] = {
+      const node: Node = {
         id: `${x}-${y}`,
         x,
         y,
@@ -25,9 +30,16 @@ const createGridData = (nodeCountX: number, nodeCountY: number): Node[][] => {
         type: 'normal',
         neighbors: [],
       };
+if(x === 10 && y === 10){
+    node.type = 'start';
+}
+      if (x === 35 && y === 15){
+node.type = 'end'
+      }
+
+      data[x][y] = node;
     }
   }
-
   // add neighbors for each node
   for (let x = 0; x < nodeCountX; x++) {
     for (let y = 0; y < nodeCountY; y++) {
@@ -47,8 +59,8 @@ export const Grid: React.FC = () => {
   const nodeGap = 0;
 
   const [gridData, setGridData] = useState(createGridData(nodeCountX, nodeCountY));
-  const [startNode, setStartNode] = useState<Node | null>(null);
-  const [endNode, setEndNode] = useState<Node | null>(null);
+  const [startNode, setStartNode] = useState<Node | null>(gridData[10][10]);
+  const [endNode, setEndNode] = useState<Node | null>(gridData[35][15]);
   const [mouseIsPressed, setMouseIsPressed] = useState(false);
   const [bombNode, setBombNode] = useState<Node | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -61,12 +73,14 @@ export const Grid: React.FC = () => {
   );
 
   useEffect(() => {
+    
+    
     const handleMouseUp = () => setMouseIsPressed(false);
     window.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
+   return () => {
       window.removeEventListener('mouseup', handleMouseUp);
     };
+    
   }, []);
 
   const handleSetStartNode = (x: number, y: number) => {
@@ -87,6 +101,7 @@ export const Grid: React.FC = () => {
 
   let delay = 0;
   const runDijkstra = useCallback(() => {
+    
     if (!startNode || !endNode) return;
     setIsRunning(true);
     delay = 0;
@@ -154,15 +169,12 @@ export const Grid: React.FC = () => {
     }, delay3);
   }, [gridData, startNode, endNode, bombNode]);
 
-  useEffect(() => {
-    // re-run Dijkstra's algorithm when start or end node changes
-    if (startNode && endNode) {
-      runDijkstra();
-    }
-  }, [startNode, endNode]);
-
+ 
   const handleToggleWallNode = (x: number, y: number) => {
     const newData = [...gridData];
+    if (newData[x][y].type === 'start' || newData[x][y].type === 'end' || newData[x][y].type === 'bomb') {
+        return;
+      }
     // Check if the current node type is 'wall'
     // If it is, change it to 'normal'. If it's not, change it to 'wall'.
     newData[x][y].type = newData[x][y].type === 'wall' ? 'normal' : 'wall';
@@ -208,15 +220,84 @@ export const Grid: React.FC = () => {
     draggedNodeRef.current = gridData[x][y];
     draggedNodeTypeRef.current = type;
   };
-
+  const clearGrid = () => {
+    setGridData(createGridData(nodeCountX, nodeCountY));
+    
+    setBombNode(null);
+    setIsRunning(false);
+};
+const button  = <Button variant="outline-success" disabled={isRunning} onClick={() => handleSetBombNode(30, 19)}>
+Bomb
+</Button> ;
+const recursiveDivision = (
+    grid: Node[][], 
+    minRow: number, 
+    maxRow: number, 
+    minCol: number, 
+    maxCol: number,
+  ) => {
+    if (maxRow < minRow || maxCol < minCol) {
+      return;
+    }
+  
+    // Choose a random row and column
+    const randomRow = Math.floor(Math.random() * (maxRow - minRow + 1) + minRow);
+    const randomCol = Math.floor(Math.random() * (maxCol - minCol + 1) + minCol);
+  
+    for (let i = minRow; i <= maxRow; i++) {
+      for (let j = minCol; j <= maxCol; j++) {
+        // Make a wall at the random row and column, but leave a gap
+        if ((i === randomRow || j === randomCol) && !(i === minRow && j === randomCol) && !(i === maxRow && j === randomCol) && !(i === randomRow && j === minCol) && !(i === randomRow && j === maxCol)) {
+          grid[i][j].type = 'wall';
+          grid[i][j].walkable = false;
+        }
+      }
+    }
+  
+    // Recursively divide the grid into quadrants
+    recursiveDivision(grid, minRow, randomRow - 1, minCol, randomCol - 1); // Top left
+    recursiveDivision(grid, minRow, randomRow - 1, randomCol + 1, maxCol); // Top right
+    recursiveDivision(grid, randomRow + 1, maxRow, minCol, randomCol - 1); // Bottom left
+    recursiveDivision(grid, randomRow + 1, maxRow, randomCol + 1, maxCol); // Bottom right
+  };
+  
+  const createMazePattern1 = () => {
+    const newData = [...gridData];
+    recursiveDivision(newData, 1, nodeCountX - 2, 1, nodeCountY - 2);
+    setGridData(newData);
+  };
+  //chose algorithm 
+  const runAlgorithm = useCallback((algorithm:any) => {
+    switch(algorithm) {
+      case 'algorithm1':
+        // Run Dijkstra
+        console.log('it ran')
+        console.log(startNode,endNode)
+        runDijkstra();
+        break;
+      case 'algorithm2':
+        // Run Algorithm 2
+        break;
+      case 'algorithm3':
+        // Run Algorithm 3
+        break;
+      default:
+        // Run Dijkstra as default
+        runDijkstra();
+        console.log('it didnt ran')
+    }
+  }, [runDijkstra]);
   return (
+    <>
+    
+    <NavbarComponent
+     visualize={runAlgorithm}
+     clearBoard={clearGrid} 
+     addBomb= {button} 
+     createMazePattern1={createMazePattern1}/>
+
     <div className="home">
-      <button onClick={() => handleSetStartNode(5, 5)}>Set Start Node</button>
-      <button onClick={() => handleSetEndNode(nodeCountX - 5, nodeCountY - 5)}>Set End Node</button>
-      <button onClick={runDijkstra}>Run Dijkstra</button>
-      <button disabled={isRunning} onClick={() => handleSetBombNode(30, 19)}>
-        Bomb
-      </button>
+     
       <div className="mega-container">
         <div
           className="grid-container"
@@ -263,5 +344,6 @@ export const Grid: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
